@@ -1,0 +1,167 @@
+:root {
+  color-scheme: dark;
+  --bg: #111111;
+  --surface: #242424;
+  --control: #3a3a3a;
+  --text: #ffffff;
+  --muted: #aaaaaa;
+  --round: #25c45f;
+  --rest: #4aa8ff;
+  --warn-bg: #4a3a10;
+  --warn-text: #ffd76a;
+  --start: #1f9d4d;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  overscroll-behavior: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  border: 0;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: calc(env(safe-area-inset-top) + 16px) calc(env(safe-area-inset-right) + 16px)
+    calc(env(safe-area-inset-bottom) + 16px) calc(env(safe-area-inset-left) + 16px);
+  text-align: center;
+}
+
+.config h1 {
+  margin: 8px 0 20px;
+  font-size: 28px;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 14px;
+  margin-bottom: 12px;
+  border-radius: 14px;
+  background: var(--surface);
+}
+
+.field-label {
+  font-size: 18px;
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.stepper button {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: var(--control);
+  font-size: 26px;
+  line-height: 1;
+}
+
+.stepper output {
+  min-width: 68px;
+  font-size: 26px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.total {
+  margin: 6px 0 14px;
+  color: var(--muted);
+}
+
+.reminder {
+  margin: 0 0 16px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+}
+
+.start {
+  margin-top: auto;
+  padding: 20px;
+  border-radius: 16px;
+  background: var(--start);
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.phase {
+  margin-top: 12px;
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.phase.round {
+  color: var(--round);
+}
+
+.phase.rest {
+  color: var(--rest);
+}
+
+.detail {
+  margin-top: 6px;
+  font-size: 20px;
+}
+
+.time {
+  margin: auto 0;
+  font-size: min(31vw, 45dvh);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.time.count {
+  font-size: min(60vw, 60dvh);
+}
+
+.controls {
+  display: flex;
+  gap: 10px;
+}
+
+.controls button {
+  flex: 1;
+  padding: 20px 0;
+  border-radius: 14px;
+  background: var(--surface);
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.sound-banner {
+  padding: 14px;
+  border-radius: 12px;
+  background: var(--warn-bg);
+  color: var(--warn-text);
+  font-weight: 700;
+  cursor: pointer;
+}
