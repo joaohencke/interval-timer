@@ -4,11 +4,12 @@ import { formatTime, type Config, type PhaseState } from '../timeline';
 import type { WakeLock } from '../wakeLock';
 
 const TICK_MS = 200;
+const RETRY_MS = 3000;
 
 type Deps = {
   config: Config;
-  audio: Pick<Audio, 'play' | 'recover'>;
-  wakeLock: Pick<WakeLock, 'acquire' | 'release'>;
+  audio: Pick<Audio, 'play' | 'recover' | 'isRunning'>;
+  wakeLock: Pick<WakeLock, 'acquire' | 'release' | 'isActive'>;
   now?: () => number;
 };
 
@@ -34,7 +35,7 @@ function view(state: PhaseState, rounds: number) {
 }
 
 export function mountWorkoutScreen(root: HTMLElement, deps: Deps, onExit: () => void): () => void {
-  const { config, audio, wakeLock, now } = deps;
+  const { config, audio, wakeLock, now = Date.now } = deps;
   const session = createSession(config, now);
 
   root.innerHTML = `
@@ -54,6 +55,9 @@ export function mountWorkoutScreen(root: HTMLElement, deps: Deps, onExit: () => 
 
   let interval: ReturnType<typeof setInterval> | undefined;
   let done = false;
+  let recovering = false;
+  let lastSoundRetry = now();
+  let lastLockRetry = now();
 
   const cleanup = () => {
     if (done) return;
@@ -109,18 +113,38 @@ export function mountWorkoutScreen(root: HTMLElement, deps: Deps, onExit: () => 
     timeEl.textContent = time;
     timeEl.classList.toggle('count', state.phase === 'countdown');
     if (state.phase === 'finished') finish();
+    else keepAlive();
     return state;
   };
 
   const restoreSound = async () => {
-    bannerEl.hidden = await audio.recover();
+    recovering = true;
+    lastSoundRetry = now();
+    const running = await audio.recover();
+    recovering = false;
+    bannerEl.hidden = running;
   };
+
+  // Calls, Siri and alarms can drop audio or the wake lock with no visibility change.
+  function keepAlive() {
+    if (document.visibilityState !== 'visible') return;
+    if (audio.isRunning()) {
+      bannerEl.hidden = true;
+    } else if (!recovering && now() - lastSoundRetry >= RETRY_MS) {
+      void restoreSound();
+    }
+    if (!wakeLock.isActive() && now() - lastLockRetry >= RETRY_MS) {
+      lastLockRetry = now();
+      void wakeLock.acquire();
+    }
+  }
 
   function onVisibility() {
     if (document.visibilityState !== 'visible') return;
     if (tick().phase === 'finished') return;
+    lastLockRetry = now();
     void wakeLock.acquire();
-    void restoreSound();
+    if (!recovering) void restoreSound();
   }
 
   bannerEl.addEventListener('click', () => void restoreSound());

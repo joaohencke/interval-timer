@@ -105,3 +105,24 @@ test('recover before unlock returns false', async () => {
   const { win } = fakeWindow();
   await expect(createAudio(win).recover()).resolves.toBe(false);
 });
+
+test('cues while suspended are dropped, so resuming plays no backlog', async () => {
+  const { win, tones } = fakeWindow({ initialState: 'suspended', resume: async () => {} });
+  const audio = createAudio(win);
+  await audio.unlock();
+  audio.play('warning');
+  audio.play('roundEnd');
+  expect(tones).toEqual([]);
+});
+
+test('isRunning reflects the context state', async () => {
+  const stuck = fakeWindow({ initialState: 'interrupted', resume: async () => {} });
+  const audio = createAudio(stuck.win);
+  expect(audio.isRunning()).toBe(false);
+  await audio.unlock();
+  expect(audio.isRunning()).toBe(false);
+
+  const fine = createAudio(fakeWindow().win);
+  await fine.unlock();
+  expect(fine.isRunning()).toBe(true);
+});

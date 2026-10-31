@@ -6,8 +6,8 @@ import { mountWorkoutScreen } from './workoutScreen';
 const config = { rounds: 2, roundSeconds: 30, restSeconds: 15 };
 
 let root: HTMLElement;
-let audio: { play: Mock<Audio['play']>; recover: Mock<Audio['recover']> };
-let wakeLock: { acquire: Mock<WakeLock['acquire']>; release: Mock<WakeLock['release']> };
+let audio: { play: Mock<Audio['play']>; recover: Mock<Audio['recover']>; isRunning: Mock<Audio['isRunning']> };
+let wakeLock: { acquire: Mock<WakeLock['acquire']>; release: Mock<WakeLock['release']>; isActive: Mock<WakeLock['isActive']> };
 let onExit: Mock<() => void>;
 let cleanup: () => void;
 
@@ -24,8 +24,8 @@ function setVisibility(state: 'visible' | 'hidden') {
 beforeEach(() => {
   vi.useFakeTimers();
   root = document.createElement('div');
-  audio = { play: vi.fn(), recover: vi.fn(async () => true) };
-  wakeLock = { acquire: vi.fn(async () => {}), release: vi.fn(async () => {}) };
+  audio = { play: vi.fn(), recover: vi.fn(async () => true), isRunning: vi.fn(() => true) };
+  wakeLock = { acquire: vi.fn(async () => {}), release: vi.fn(async () => {}), isActive: vi.fn(() => true) };
   onExit = vi.fn();
   cleanup = mountWorkoutScreen(root, { config, audio, wakeLock }, onExit);
 });
@@ -126,7 +126,8 @@ test('return to visible after the workout ended does not hold the screen on', as
 
 test('if recovery fails: shows a tap-to-restore-sound banner and timer keeps running', async () => {
   vi.advanceTimersByTime(4000);
-  audio.recover.mockResolvedValueOnce(false);
+  audio.isRunning.mockReturnValue(false);
+  audio.recover.mockResolvedValue(false);
   setVisibility('visible');
   await vi.advanceTimersByTimeAsync(0);
   const banner = q('.sound-banner');
@@ -135,7 +136,8 @@ test('if recovery fails: shows a tap-to-restore-sound banner and timer keeps run
   await vi.advanceTimersByTimeAsync(2000);
   expect(q('.time').textContent).not.toBe(shown);
 
-  audio.recover.mockResolvedValueOnce(true);
+  audio.isRunning.mockReturnValue(true);
+  audio.recover.mockResolvedValue(true);
   banner.click();
   await vi.advanceTimersByTimeAsync(0);
   expect(q('.sound-banner').hidden).toBe(true);
@@ -145,4 +147,64 @@ test('cleanup stops the timer', () => {
   cleanup();
   vi.advanceTimersByTime(60000);
   expect(audio.play).not.toHaveBeenCalled();
+});
+
+test('audio dropping with no visibility change retries and shows the banner', async () => {
+  await vi.advanceTimersByTimeAsync(4000);
+  audio.recover.mockClear();
+  audio.isRunning.mockReturnValue(false);
+  audio.recover.mockResolvedValue(false);
+  await vi.advanceTimersByTimeAsync(3200);
+  expect(audio.recover).toHaveBeenCalled();
+  expect(q('.sound-banner').hidden).toBe(false);
+});
+
+test('audio retries are rate limited', async () => {
+  await vi.advanceTimersByTimeAsync(4000);
+  audio.recover.mockClear();
+  audio.isRunning.mockReturnValue(false);
+  audio.recover.mockResolvedValue(false);
+  await vi.advanceTimersByTimeAsync(9000);
+  expect(audio.recover.mock.calls.length).toBeLessThanOrEqual(3);
+});
+
+test('banner clears when audio comes back on its own', async () => {
+  await vi.advanceTimersByTimeAsync(4000);
+  audio.isRunning.mockReturnValue(false);
+  audio.recover.mockResolvedValue(false);
+  await vi.advanceTimersByTimeAsync(3200);
+  expect(q('.sound-banner').hidden).toBe(false);
+  audio.isRunning.mockReturnValue(true);
+  await vi.advanceTimersByTimeAsync(200);
+  expect(q('.sound-banner').hidden).toBe(true);
+});
+
+test('healthy audio is never retried and shows no banner', async () => {
+  await vi.advanceTimersByTimeAsync(20000);
+  expect(audio.recover).not.toHaveBeenCalled();
+  expect(q('.sound-banner').hidden).toBe(true);
+});
+
+test('wake lock lost while visible is requested again', async () => {
+  wakeLock.isActive.mockReturnValue(false);
+  await vi.advanceTimersByTimeAsync(6000);
+  expect(wakeLock.acquire).toHaveBeenCalled();
+});
+
+test('wake lock is not requested while hidden', async () => {
+  Object.defineProperty(document, 'visibilityState', { configurable: true, value: 'hidden' });
+  wakeLock.isActive.mockReturnValue(false);
+  await vi.advanceTimersByTimeAsync(6000);
+  expect(wakeLock.acquire).not.toHaveBeenCalled();
+});
+
+test('no retries after the workout finishes', async () => {
+  await vi.advanceTimersByTimeAsync(78000);
+  audio.recover.mockClear();
+  wakeLock.acquire.mockClear();
+  audio.isRunning.mockReturnValue(false);
+  wakeLock.isActive.mockReturnValue(false);
+  await vi.advanceTimersByTimeAsync(20000);
+  expect(audio.recover).not.toHaveBeenCalled();
+  expect(wakeLock.acquire).not.toHaveBeenCalled();
 });

@@ -4,6 +4,7 @@ export type Audio = {
   unlock(): Promise<void>;
   play(kind: CueKind): void;
   recover(): Promise<boolean>;
+  isRunning(): boolean;
 };
 
 type Beep = { at: number; duration: number; from: number; to?: number };
@@ -50,7 +51,8 @@ export function createAudio(win: Window = window): Audio {
     },
 
     play(kind) {
-      if (!ctx) return;
+      // A suspended context has a frozen clock: anything scheduled now would all sound at once on resume.
+      if (ctx?.state !== 'running') return;
       const start = ctx.currentTime + 0.02;
       for (const beep of PATTERNS[kind]) {
         const at = start + beep.at;
@@ -74,6 +76,10 @@ export function createAudio(win: Window = window): Audio {
       if (!ctx) return false;
       if (ctx.state !== 'running') await resumeWithTimeout(ctx);
       return ctx.state === 'running';
+    },
+
+    isRunning() {
+      return ctx?.state === 'running';
     },
   };
 }
