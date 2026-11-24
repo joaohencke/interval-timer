@@ -25,7 +25,7 @@ function fakeWindow(options: { audioSession?: boolean; resume?: () => Promise<vo
     }
     createGain() {
       return {
-        gain: { setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {} },
+        gain: { setValueAtTime: () => {}, exponentialRampToValueAtTime: () => {}, linearRampToValueAtTime: () => {}, setTargetAtTime: () => {} },
         connect: (node: unknown) => node,
       };
     }
